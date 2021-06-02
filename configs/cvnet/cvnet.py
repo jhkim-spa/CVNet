@@ -87,8 +87,8 @@ data = dict(
         dataset=dict(
             type=dataset_type,
             data_root=data_root,
-            # ann_file=data_root + 'kitti_infos_train.pkl',
-            ann_file=data_root + 'kitti_infos_debug.pkl',
+            ann_file=data_root + 'kitti_infos_train.pkl',
+            # ann_file=data_root + 'kitti_infos_debug.pkl',
             split='training',
             pts_prefix='velodyne_reduced',
             pipeline=train_pipeline,
@@ -101,8 +101,8 @@ data = dict(
     val=dict(
         type=dataset_type,
         data_root=data_root,
-        # ann_file=data_root + 'kitti_infos_val.pkl',
-        ann_file=data_root + 'kitti_infos_debug.pkl',
+        ann_file=data_root + 'kitti_infos_val.pkl',
+        # ann_file=data_root + 'kitti_infos_debug.pkl',
         split='training',
         pts_prefix='velodyne_reduced',
         pipeline=test_pipeline,
@@ -123,12 +123,13 @@ data = dict(
         test_mode=True,
         box_type_3d='LiDAR'))
 
-evaluation = dict(interval=1)
+evaluation = dict(interval=10)
 
 model = dict(
     type='CVNet',
     cv_size=(1242, 375),
-    pad_size_divisor=32,
+    # pad_size=(35, 35, 0, 41), #(left, right, up, bottom)
+    pad_size=(35+36, 35+36, 0, 41+36+36), #(left, right, up, bottom)
     backbone=dict(
         type='UNet',
         n_channels=5,
@@ -137,31 +138,24 @@ model = dict(
         type='CenterHeadCV',
         num_classes=1,
         feat_channels=64,
-        use_direction_classifier=True,
-        diff_rad_by_sin=True,
-        bbox_coder=dict(type='DeltaXYZWLHRBBoxCoder'),
         loss_cls=dict(
             type='FocalLoss',
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
             loss_weight=1.0),
-        loss_bbox=dict(type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=2.0),
-        loss_dir=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=0.2)))
-
-# model training and testing settings
-train_cfg = dict(
-    assigner=dict(type='InBoxAssigner'),
-    pos_weight=-1)
-test_cfg = dict(
-    use_rotate_nms=True,
-    nms_across_levels=False,
-    nms_thr=0.01,
-    score_thr=0.3,
-    min_bbox_size=0,
-    nms_pre=500,
-    max_num=50)
+        loss_bbox=dict(type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=2.0)),
+    train_cfg = dict(
+        assigner=dict(type='InBoxAssigner'),
+        pos_weight=-1),
+    test_cfg = dict(
+        use_rotate_nms=True,
+        nms_across_levels=False,
+        nms_thr=0.01,
+        score_thr=0.3,
+        min_bbox_size=0,
+        nms_pre=500,
+        max_num=50))
 
 lr = 0.0018
 optimizer = dict(type='AdamW', lr=lr, betas=(0.95, 0.99), weight_decay=0.01)
@@ -178,7 +172,7 @@ momentum_config = dict(
     cyclic_times=1,
     step_ratio_up=0.4,
 )
-total_epochs = 40
+runner = dict(type='EpochBasedRunner', max_epochs=40)
 
 checkpoint_config = dict(interval=1)
 # yapf:disable push
@@ -186,7 +180,7 @@ checkpoint_config = dict(interval=1)
 # For more loggers see
 # https://mmcv.readthedocs.io/en/latest/api.html#mmcv.runner.LoggerHook
 log_config = dict(
-    interval=50,
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')

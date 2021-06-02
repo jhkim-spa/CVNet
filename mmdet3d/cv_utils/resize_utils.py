@@ -3,17 +3,15 @@ import torch.nn as nn
 
 
 @torch.no_grad()
-def pad(cv, size_divisor):
-    pad_h = size_divisor - cv.shape[-2] % size_divisor
-    pad_w = size_divisor - cv.shape[-1] % size_divisor
-    m = nn.ZeroPad2d((pad_w, pad_w, 0, pad_h))
+def pad(cv, pad_size):
+    m = nn.ZeroPad2d(pad_size)
     cv_padded = m(cv)
 
     return cv_padded
 
 
 @torch.no_grad()
-def resize(cv, size):
+def resize(cv, size, nonzero_idx=0):
     device = cv.device
     w_des, h_des = size
     w_scale = w_des / cv.shape[1]
@@ -24,7 +22,7 @@ def resize(cv, size):
     else:
         cv_resized = torch.zeros((h_des, w_des, cv.shape[-1]),
                                     dtype=torch.float32, device=device)
-        idx_src = torch.nonzero(cv[..., 0], as_tuple=True)
+        idx_src = torch.nonzero(cv[..., nonzero_idx], as_tuple=True)
         idx_des = list()
         idx_des.append((h_scale * idx_src[0]).to(torch.long))
         idx_des.append((w_scale * idx_src[1]).to(torch.long))

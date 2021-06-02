@@ -11,7 +11,7 @@ class CVNet(SingleStage3DDetector):
 
     def __init__(self,
                  cv_size,
-                 pad_size_divisor,
+                 pad_size,
                  backbone,
                  neck=None,
                  bbox_head=None,
@@ -27,7 +27,7 @@ class CVNet(SingleStage3DDetector):
             pretrained=pretrained,
         )
         self.cv_size = cv_size
-        self.pad_size_divisor = pad_size_divisor
+        self.pad_size = pad_size
 
     def extract_feat(self, points, img_metas):
         """Extract features from points."""
@@ -36,11 +36,12 @@ class CVNet(SingleStage3DDetector):
         cv = [resize(res_cv, self.cv_size) for res_cv in cv]
         cv = torch.stack(cv)
         cv = cv.permute(0, 3, 1, 2)
-        cv = pad(cv, self.pad_size_divisor)
+        cv = pad(cv, self.pad_size)
+        cv_size = cv.shape[-2:]
         x = self.backbone(cv)
         if self.with_neck:
             x = self.neck(x)
-        return x
+        return x, cv_size
 
     def forward_train(self,
                       points,
@@ -63,12 +64,12 @@ class CVNet(SingleStage3DDetector):
         Returns:
             dict: Losses of each branch.
         """
-        x = self.extract_feat(points, img_metas)
+        x, cv_size = self.extract_feat(points, img_metas)
         outs = self.bbox_head(x)
         loss_inputs = outs + (gt_bboxes_3d, gt_labels_3d, img_metas,
-            self.cv_size, self.pad_size_divisor)
+            cv_size, self.pad_size)
         losses = self.bbox_head.loss(
-            *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
+           *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
         return losses
 
     def simple_test(self, points, img_metas, imgs=None, rescale=False):
